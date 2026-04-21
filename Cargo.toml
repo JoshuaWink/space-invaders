@@ -1,0 +1,27 @@
+[package]
+name = "space-invaders-emu"
+version = "0.1.0"
+edition = "2021"
+description = "Space Invaders arcade emulator — Intel 8080 CPU in Rust, compiled to WASM"
+license = "MIT"
+
+[features]
+default = []
+wasm = ["wasm-bindgen", "js-sys", "web-sys"]
+
+[lib]
+name = "space_invaders_emu"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", features = ["console"], optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[profile.release]
+opt-level = "s"
+lto = true

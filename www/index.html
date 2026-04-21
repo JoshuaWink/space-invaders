@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Space Invaders arcade emulator — Intel 8080 on WASM">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>👾</text></svg>">
+  <title>Space Invaders — CUP Emulator</title>
+  <link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+  <!-- ── ROM Loader Screen ─────────────────────────────────── -->
+  <div id="screen-loader" class="screen active">
+    <div class="loader-content">
+      <h1 class="title">👾 Space Invaders</h1>
+      <p class="subtitle">Intel 8080 Emulator · Rust/WASM · CUP Pipeline</p>
+
+      <div id="drop-zone" class="drop-zone">
+        <p>Drop ROM file here</p>
+        <p class="hint">or click to select</p>
+        <input type="file" id="rom-input" accept=".bin,.rom,.h,.g,.f,.e" multiple hidden>
+      </div>
+
+      <button id="play-game-btn" class="play-btn" data-step-rom="./roms/game.rom">▶ Play Game</button>
+
+      <details class="step-loader">
+        <summary class="hint">Developer step ROMs</summary>
+        <div class="step-buttons">
+          <button class="step-btn" data-step-rom="./roms/step_01_boot_clear.rom">Step 1</button>
+          <button class="step-btn" data-step-rom="./roms/step_02_player_bunkers.rom">Step 2</button>
+          <button class="step-btn" data-step-rom="./roms/step_03_invader_row.rom">Step 3</button>
+          <button class="step-btn" data-step-rom="./roms/step_04_invader_march.rom">Step 4</button>
+          <button class="step-btn" data-step-rom="./roms/step_05_player_move.rom">Step 5</button>
+          <button class="step-btn" data-step-rom="./roms/step_06_shot_hit.rom">Step 6</button>
+          <button class="step-btn" data-step-rom="./roms/step_07_edge_reverse.rom">Step 7</button>
+        </div>
+      </details>
+
+      <div id="rom-status" class="rom-status hidden"></div>
+
+      <div class="controls-help">
+        <h3>Controls</h3>
+        <table>
+          <tr><td>Insert Coin</td><td><kbd>C</kbd></td></tr>
+          <tr><td>1P Start</td><td><kbd>Enter</kbd></td></tr>
+          <tr><td>Move Left</td><td><kbd>←</kbd></td></tr>
+          <tr><td>Move Right</td><td><kbd>→</kbd></td></tr>
+          <tr><td>Fire</td><td><kbd>Space</kbd></td></tr>
+          <tr><td>Pause</td><td><kbd>P</kbd></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Game Screen ───────────────────────────────────────── -->
+  <div id="screen-game" class="screen">
+    <div class="game-layout">
+      <div class="game-wrapper">
+        <canvas id="game-canvas" width="224" height="256"></canvas>
+        <canvas id="vram-overlay" class="vram-overlay hidden" width="224" height="256"></canvas>
+      </div>
+
+      <!-- Debug visualizer panel -->
+      <div id="debug-panel" class="debug-panel hidden">
+        <div class="debug-section">
+          <div class="debug-label">ADDRESS SPACE HEAT MAP</div>
+          <div class="debug-sublabel">ROM · RAM · VRAM</div>
+          <canvas id="heat-canvas" class="heat-canvas" width="128" height="128"></canvas>
+        </div>
+        <div class="debug-section">
+          <div class="debug-label">CPU REGISTERS</div>
+          <pre id="reg-display" class="reg-display">PC 0000  SP 0000
+A  00    F  ········
+B  00  C  00
+D  00  E  00
+H  00  L  00</pre>
+        </div>
+      </div>
+    </div>
+
+    <div id="hud" class="hud">
+      <span id="hud-score" class="hud-pill">SCORE 0000</span>
+      <span id="hud-lives" class="hud-pill">LIVES 0</span>
+      <span id="hud-status" class="hud-pill">READY</span>
+      <span id="fps-counter">0 fps</span>
+      <button id="btn-pause" class="hud-btn" aria-label="Pause">⏸</button>
+      <button id="btn-mute" class="hud-btn" aria-label="Mute">🔊</button>
+      <button id="btn-reset" class="hud-btn" aria-label="Reset">↺</button>
+      <button id="btn-debug" class="hud-btn" aria-label="Debug visualizer" title="Toggle CPU heat map">🔬</button>
+    </div>
+
+    <!-- Touch controls (mobile) — populated by joystick.js -->
+    <div id="touch-controls" class="touch-controls"></div>
+  </div>
+
+  <!-- ── Scripts ───────────────────────────────────────────── -->
+  <script type="module" src="js/game.js"></script>
+</body>
+</html>

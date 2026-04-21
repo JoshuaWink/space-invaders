@@ -1,0 +1,16 @@
+# Build artifacts
+/target/
+/pkg/
+*.wasm
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor
+.DS_Store
+.vscode/settings.json
+
+# Cargo lock — keep for reproducible WASM builds
+# Cargo.lock intentionally committed
