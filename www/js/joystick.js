@@ -30,9 +30,15 @@ export class VirtualJoystick {
     const container = document.getElementById('touch-controls');
     if (!container) return;
 
-    // Replace the old button-based controls with joystick layout
+    // Detect touch support — supplements CSS (hover:none)+(pointer:coarse)
+    const isTouch = ('ontouchstart' in window) ||
+                    (navigator.maxTouchPoints > 0) ||
+                    window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    if (!isTouch) return;
+
     container.innerHTML = '';
     container.className = 'touch-controls joystick-layout';
+    container.style.display = 'flex'; // force visible — media query may not fire yet
 
     // ── Top row: coin + start ──
     const topRow = document.createElement('div');
@@ -70,8 +76,9 @@ export class VirtualJoystick {
     this._knobEl = knob;
     this._fireEl = fire;
 
-    // Measure
+    // Measure (re-measure after first rAF paint in case element was not yet laid out)
     this._measure();
+    requestAnimationFrame(() => this._measure());
 
     // Bind touch events
     this._bindStick();

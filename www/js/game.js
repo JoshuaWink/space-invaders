@@ -188,6 +188,13 @@ function startGame(wasm, rom, romName = 'unknown') {
   paused = false;
   running = true;
 
+  // Mount virtual joystick once for the lifetime of the page
+  if (!window._joystickMounted) {
+    window._joystickMounted = true;
+    const joystick = new VirtualJoystick(inputState);
+    joystick.mount();
+  }
+
   // Init heat map visualizer
   initHeatmap();
 

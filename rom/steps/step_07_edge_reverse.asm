@@ -1385,21 +1385,63 @@ erase_player_from_hl:
     call erase_8col_sprite
     ret
 
+; Each bunker = 16x16px: 2 cols wide (arch_l + arch_r) x 2 rows tall (arch + base).
+; byte_idx=6 (arch top, screen_y 200-207), byte_idx=5 (solid base, screen_y 208-215).
 draw_bunkers:
+    ; Bunker 1 — screen_x 32..47
     lxi d, 0x2806
-    lxi h, bunker_sprite
+    lxi h, bunker_arch_l
+    call draw_8col_sprite
+    lxi d, 0x2906
+    lxi h, bunker_arch_r
+    call draw_8col_sprite
+    lxi d, 0x2805
+    lxi h, bunker_base
+    call draw_8col_sprite
+    lxi d, 0x2905
+    lxi h, bunker_base
     call draw_8col_sprite
 
+    ; Bunker 2 — screen_x 72..87
     lxi d, 0x2D06
-    lxi h, bunker_sprite
+    lxi h, bunker_arch_l
+    call draw_8col_sprite
+    lxi d, 0x2E06
+    lxi h, bunker_arch_r
+    call draw_8col_sprite
+    lxi d, 0x2D05
+    lxi h, bunker_base
+    call draw_8col_sprite
+    lxi d, 0x2E05
+    lxi h, bunker_base
     call draw_8col_sprite
 
+    ; Bunker 3 — screen_x 112..127
     lxi d, 0x3206
-    lxi h, bunker_sprite
+    lxi h, bunker_arch_l
+    call draw_8col_sprite
+    lxi d, 0x3306
+    lxi h, bunker_arch_r
+    call draw_8col_sprite
+    lxi d, 0x3205
+    lxi h, bunker_base
+    call draw_8col_sprite
+    lxi d, 0x3305
+    lxi h, bunker_base
     call draw_8col_sprite
 
+    ; Bunker 4 — screen_x 152..167
     lxi d, 0x3706
-    lxi h, bunker_sprite
+    lxi h, bunker_arch_l
+    call draw_8col_sprite
+    lxi d, 0x3806
+    lxi h, bunker_arch_r
+    call draw_8col_sprite
+    lxi d, 0x3705
+    lxi h, bunker_base
+    call draw_8col_sprite
+    lxi d, 0x3805
+    lxi h, bunker_base
     call draw_8col_sprite
     ret
 
@@ -1651,10 +1693,14 @@ hit_check_yes:
     ret
 
 bullet_hits_bunker:
+    ; Hit byte_idx=6 (arch top) or byte_idx=5 (solid base).
     mov a, l
     ani 0x1F
     cpi 0x06
+    jz do_bunker_hit
+    cpi 0x05
     jnz bullet_no_bunker
+do_bunker_hit:
     mov a, m
     cpi 0x00
     jz bullet_no_bunker
@@ -1721,8 +1767,17 @@ delay_tick:
 player_sprite:
     .byte 0x18, 0x39, 0x7E, 0xFC, 0xFC, 0x7E, 0x39, 0x18
 
-bunker_sprite:
-    .byte 0x3E, 0x7E, 0xF8, 0xF0, 0xF0, 0xF8, 0x7E, 0x3E
+; Left arch half: solid pillar left 4 cols, arch opening opens right.
+; Right arch half: mirror — arch opening closes back to solid pillar right 4 cols.
+; Combined 16-wide bunker has single arch opening at bottom-center (8px wide).
+bunker_arch_l:
+    .byte 0xFF, 0xFF, 0xFF, 0xFF, 0xF8, 0xF0, 0xF0, 0xF0
+
+bunker_arch_r:
+    .byte 0xF0, 0xF0, 0xF0, 0xF8, 0xFF, 0xFF, 0xFF, 0xFF
+
+bunker_base:
+    .byte 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
 
 ufo_sprite:
     .byte 0x18, 0x3C, 0x7E, 0xDB, 0xDB, 0x7E, 0x24, 0x00
