@@ -334,6 +334,26 @@ kbd {
   color: var(--bg);
 }
 
+/* Unlocked state — visual cue for drag-to-reposition */
+.js-base.js-unlocked,
+.js-fire.js-unlocked {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+  opacity: 0.7;
+  animation: js-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes js-pulse {
+  0%, 100% { outline-color: var(--accent); }
+  50% { outline-color: transparent; }
+}
+
+.js-lock {
+  font-size: 1rem;
+  padding: 0.3rem 0.5rem;
+  min-width: 2.2rem;
+}
+
 /* Top-row buttons (coin / start) */
 .js-btn {
   background: var(--surface);

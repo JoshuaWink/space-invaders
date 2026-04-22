@@ -6,7 +6,13 @@
  *
  * Renders via CSS transform (GPU-composited, zero layout thrash).
  * Feeds into InputState the same way keyboard does.
+ *
+ * Lock / Unlock: Tap the 🔒 button to unlock controls for repositioning.
+ * Drag the joystick base or fire button to a new position.
+ * Tap 🔓 to lock them back. Positions persist in localStorage.
  */
+
+const STORAGE_KEY = 'si-controls-pos';
 
 export class VirtualJoystick {
   constructor(inputState) {
@@ -21,6 +27,12 @@ export class VirtualJoystick {
     this._fireEl = null;
     this._fireTracking = null;
     this._mounted = false;
+    this._locked = true;       // true = normal play, false = drag-to-reposition
+    this._lockBtn = null;
+    this._dragTarget = null;   // element being dragged during unlock
+    this._dragTouchId = null;
+    this._dragOffsetX = 0;
+    this._dragOffsetY = 0;
   }
 
   mount() {
@@ -76,6 +88,27 @@ export class VirtualJoystick {
     this._knobEl = knob;
     this._fireEl = fire;
 
+    // ── Lock/Unlock button ──
+    const lockBtn = document.createElement('button');
+    lockBtn.className = 'js-btn js-lock';
+    lockBtn.setAttribute('aria-label', 'Lock or unlock control positions');
+    lockBtn.textContent = '🔒';
+    topRow.appendChild(lockBtn);
+    this._lockBtn = lockBtn;
+
+    lockBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      this._toggleLock();
+    });
+    lockBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this._toggleLock();
+    }, { passive: false });
+
+    // Restore saved positions before measuring
+    this._restorePositions();
+
     // Measure (re-measure after first rAF paint in case element was not yet laid out)
     this._measure();
     requestAnimationFrame(() => this._measure());
@@ -112,6 +145,7 @@ export class VirtualJoystick {
 
     el.addEventListener('touchstart', (e) => {
       e.preventDefault();
+      if (!this._locked) return; // unlocked = drag mode, not play
       if (this._tracking !== null) return; // already tracking a finger
       const touch = e.changedTouches[0];
       this._tracking = touch.identifier;
@@ -205,6 +239,7 @@ export class VirtualJoystick {
 
     el.addEventListener('touchstart', (e) => {
       e.preventDefault();
+      if (!this._locked) return; // unlocked = drag mode, not play
       this._fireTracking = e.changedTouches[0].identifier;
       this.input.fire = true;
       el.classList.add('active');
@@ -259,6 +294,135 @@ export class VirtualJoystick {
       e.preventDefault();
       fn();
     });
+  }
+
+  // ── Lock / Unlock ──
+
+  _toggleLock() {
+    this._locked = !this._locked;
+    this._lockBtn.textContent = this._locked ? '🔒' : '🔓';
+    this._baseEl.classList.toggle('js-unlocked', !this._locked);
+    this._fireEl.classList.toggle('js-unlocked', !this._locked);
+
+    if (this._locked) {
+      this._savePositions();
+      this._unbindDrag();
+    } else {
+      this._bindDrag();
+    }
+    this._haptic();
+  }
+
+  _bindDrag() {
+    // When unlocked, touching base or fire initiates repositioning
+    this._dragHandler = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (this._dragTouchId !== null) return;
+      const touch = e.changedTouches[0];
+      this._dragTouchId = touch.identifier;
+      this._dragTarget = e.currentTarget;
+      const rect = this._dragTarget.getBoundingClientRect();
+      this._dragOffsetX = touch.clientX - rect.left;
+      this._dragOffsetY = touch.clientY - rect.top;
+    };
+
+    this._dragMoveHandler = (e) => {
+      e.preventDefault();
+      if (this._dragTouchId === null || !this._dragTarget) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === this._dragTouchId) {
+          const touch = e.changedTouches[i];
+          const x = touch.clientX - this._dragOffsetX;
+          const y = touch.clientY - this._dragOffsetY;
+          this._applyFixedPos(this._dragTarget, x, y);
+          if (this._dragTarget === this._baseEl) this._measure();
+          break;
+        }
+      }
+    };
+
+    this._dragEndHandler = (e) => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === this._dragTouchId) {
+          this._dragTouchId = null;
+          this._dragTarget = null;
+          break;
+        }
+      }
+    };
+
+    // Attach to both draggable elements
+    for (const el of [this._baseEl, this._fireEl]) {
+      el.addEventListener('touchstart', this._dragHandler, { passive: false, capture: true });
+    }
+    document.addEventListener('touchmove', this._dragMoveHandler, { passive: false });
+    document.addEventListener('touchend', this._dragEndHandler, { passive: false });
+    document.addEventListener('touchcancel', this._dragEndHandler, { passive: false });
+  }
+
+  _unbindDrag() {
+    for (const el of [this._baseEl, this._fireEl]) {
+      if (this._dragHandler) {
+        el.removeEventListener('touchstart', this._dragHandler, { capture: true });
+      }
+    }
+    if (this._dragMoveHandler) {
+      document.removeEventListener('touchmove', this._dragMoveHandler);
+    }
+    if (this._dragEndHandler) {
+      document.removeEventListener('touchend', this._dragEndHandler);
+      document.removeEventListener('touchcancel', this._dragEndHandler);
+    }
+    this._dragHandler = null;
+    this._dragMoveHandler = null;
+    this._dragEndHandler = null;
+    this._dragTouchId = null;
+    this._dragTarget = null;
+  }
+
+  _applyFixedPos(el, x, y) {
+    // Clamp to viewport
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    x = Math.max(0, Math.min(x, vw - w));
+    y = Math.max(0, Math.min(y, vh - h));
+
+    el.style.position = 'fixed';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.zIndex = '9999';
+    el.style.margin = '0';
+  }
+
+  _savePositions() {
+    const data = {};
+    for (const [key, el] of [['base', this._baseEl], ['fire', this._fireEl]]) {
+      if (el.style.position === 'fixed') {
+        data[key] = { left: el.style.left, top: el.style.top };
+      }
+    }
+    if (Object.keys(data).length > 0) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (_) {}
+    }
+  }
+
+  _restorePositions() {
+    let data;
+    try { data = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (_) { return; }
+    if (!data) return;
+    for (const [key, el] of [['base', this._baseEl], ['fire', this._fireEl]]) {
+      if (data[key]) {
+        el.style.position = 'fixed';
+        el.style.left = data[key].left;
+        el.style.top = data[key].top;
+        el.style.zIndex = '9999';
+        el.style.margin = '0';
+      }
+    }
   }
 
   // ── Haptics ──
