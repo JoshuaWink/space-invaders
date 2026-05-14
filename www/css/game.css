@@ -254,6 +254,94 @@ kbd {
   cursor: not-allowed;
 }
 
+/* ── Controller Panel ─────────────────────────────────────── */
+.controller-panel {
+  width: min(92vw, 560px);
+  margin: 0.15rem auto 0.5rem;
+  padding: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.controller-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.controller-deadzone-row {
+  align-items: center;
+}
+
+.controller-label {
+  font-size: 0.62rem;
+  color: var(--dim);
+  letter-spacing: 0.1em;
+}
+
+.controller-value {
+  font-size: 0.68rem;
+  color: var(--text);
+}
+
+#deadzone-range {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.controller-map-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.map-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.66rem;
+  letter-spacing: 0.03em;
+}
+
+.map-btn:hover {
+  border-color: var(--accent);
+}
+
+.map-btn .bind-label {
+  color: var(--accent);
+}
+
+.map-btn.binding {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(0, 255, 0, 0.3) inset;
+}
+
+.map-btn-reset {
+  text-align: center;
+}
+
+.controller-hint {
+  min-height: 1.2rem;
+  font-size: 0.6rem;
+  color: var(--dim);
+}
+
+@media (max-width: 560px) {
+  .controller-map-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Touch Controls / Virtual Joystick ─────────────────────── */
 .touch-controls {
   display: none;

@@ -49,6 +49,7 @@
           <tr><td>Move Right</td><td><kbd>→</kbd></td></tr>
           <tr><td>Fire</td><td><kbd>Space</kbd></td></tr>
           <tr><td>Pause</td><td><kbd>P</kbd></td></tr>
+          <tr><td>Controller</td><td><kbd>🎮</kbd> Mappable</td></tr>
         </table>
       </div>
     </div>
@@ -88,8 +89,34 @@ H  00  L  00</pre>
       <button id="btn-pause" class="hud-btn" aria-label="Pause">⏸</button>
       <button id="btn-mute" class="hud-btn" aria-label="Mute">🔊</button>
       <button id="btn-haptic-audio" class="hud-btn" aria-label="Audio haptics" title="Mirror game sounds with vibration">📳</button>
+      <button id="btn-controller" class="hud-btn" aria-label="Controller settings" title="Controller settings">🎮</button>
       <button id="btn-reset" class="hud-btn" aria-label="Reset">↺</button>
       <button id="btn-debug" class="hud-btn" aria-label="Debug visualizer" title="Toggle CPU heat map">🔬</button>
+    </div>
+
+    <div id="controller-panel" class="controller-panel hidden" aria-live="polite">
+      <div class="controller-row">
+        <span class="controller-label">CONTROLLER</span>
+        <span id="controller-status" class="controller-value">No controller</span>
+      </div>
+
+      <div class="controller-row controller-deadzone-row">
+        <label for="deadzone-range" class="controller-label">DEADZONE</label>
+        <input id="deadzone-range" type="range" min="0.05" max="0.60" step="0.01" value="0.20">
+        <span id="deadzone-value" class="controller-value">0.20</span>
+      </div>
+
+      <div class="controller-map-grid">
+        <button class="map-btn" data-bind-action="left">Left: <span class="bind-label">Axis 0 -</span></button>
+        <button class="map-btn" data-bind-action="right">Right: <span class="bind-label">Axis 0 +</span></button>
+        <button class="map-btn" data-bind-action="fire">Fire: <span class="bind-label">Button 0</span></button>
+        <button class="map-btn" data-bind-action="start">Start: <span class="bind-label">Button 9</span></button>
+        <button class="map-btn" data-bind-action="coin">Coin: <span class="bind-label">Button 8</span></button>
+      </div>
+
+      <div id="controller-bind-hint" class="controller-hint">Click an action, then press a button or move an axis.</div>
+
+      <button id="controller-reset" class="map-btn map-btn-reset">Reset Mapping</button>
     </div>
 
     <!-- Touch controls (mobile) — populated by joystick.js -->

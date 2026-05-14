@@ -15,6 +15,7 @@ import { VirtualJoystick } from './joystick.js';
 let machine = null;      // WasmMachine instance
 let audioCtx = null;     // Web Audio context (created on user gesture)
 let inputState = null;   // Keyboard/touch tracker
+let joystick = null;     // Virtual joystick instance (mobile)
 let muted = false;
 let hapticAudioEnabled = false;
 let paused = false;
@@ -22,6 +23,8 @@ let running = false;
 let frameId = null;
 let lastRom = null;
 let lastRomName = 'unknown';
+let controllerPanelBound = false;
+let refreshControllerPanel = null;
 
 // FPS tracking
 let frameCount = 0;
@@ -200,6 +203,15 @@ function startGame(wasm, rom, romName = 'unknown') {
     inputState = new InputState();
   }
 
+  if (!joystick) {
+    joystick = new VirtualJoystick(inputState, {
+      deadZone: inputState.getControllerDeadzone(),
+    });
+    joystick.mount();
+  }
+
+  bindControllerPanel();
+
   // Get canvas context
   const canvas = document.getElementById('game-canvas');
   const ctx2d = canvas.getContext('2d');
@@ -208,13 +220,6 @@ function startGame(wasm, rom, romName = 'unknown') {
   showScreen('screen-game');
   paused = false;
   running = true;
-
-  // Mount virtual joystick once for the lifetime of the page
-  if (!window._joystickMounted) {
-    window._joystickMounted = true;
-    const joystick = new VirtualJoystick(inputState);
-    joystick.mount();
-  }
 
   // Init heat map visualizer
   initHeatmap();
@@ -242,6 +247,10 @@ function startGame(wasm, rom, romName = 'unknown') {
 
     const delta = Math.min(250, timestamp - lastTickTime);
     lastTickTime = timestamp;
+
+    // Keep controller state current regardless of pause state.
+    inputState.pollControllers();
+    if (refreshControllerPanel) refreshControllerPanel();
 
     if (!paused) {
       accumulatorMs += delta;
@@ -296,6 +305,127 @@ function resetGame(wasm) {
   loadCachedRom().then(cached => {
     if (cached) startGame(wasm, cached.data, cached.name);
   });
+}
+
+function bindControllerPanel() {
+  if (controllerPanelBound || !inputState) return;
+
+  const panel = document.getElementById('controller-panel');
+  const toggleBtn = document.getElementById('btn-controller');
+  const statusEl = document.getElementById('controller-status');
+  const deadzoneRange = document.getElementById('deadzone-range');
+  const deadzoneValue = document.getElementById('deadzone-value');
+  const hintEl = document.getElementById('controller-bind-hint');
+  const resetBtn = document.getElementById('controller-reset');
+
+  if (!panel || !toggleBtn || !statusEl || !deadzoneRange || !deadzoneValue || !hintEl || !resetBtn) {
+    return;
+  }
+
+  controllerPanelBound = true;
+
+  const defaultHint = 'Click an action, then press a button or move an axis.';
+  const actionButtons = Array.from(panel.querySelectorAll('[data-bind-action]'));
+
+  const setHint = (msg) => {
+    hintEl.textContent = msg || defaultHint;
+  };
+
+  const setPanelVisible = (visible) => {
+    panel.classList.toggle('hidden', !visible);
+    toggleBtn.classList.toggle('is-on', visible);
+    if (!visible) {
+      inputState.cancelControllerBinding();
+      actionButtons.forEach((btn) => btn.classList.remove('binding'));
+      setHint(defaultHint);
+    }
+  };
+
+  const renderBindings = () => {
+    actionButtons.forEach((btn) => {
+      const action = btn.getAttribute('data-bind-action');
+      const label = btn.querySelector('.bind-label');
+      if (!action || !label) return;
+      label.textContent = inputState.formatControllerBinding(inputState.getControllerBinding(action));
+    });
+  };
+
+  const renderDeadzone = () => {
+    const deadzone = inputState.getControllerDeadzone();
+    deadzoneRange.value = deadzone.toFixed(2);
+    deadzoneValue.textContent = deadzone.toFixed(2);
+  };
+
+  const renderStatus = () => {
+    const info = inputState.getControllerInfo();
+    statusEl.textContent = info.connected
+      ? `Connected: ${info.name}`
+      : 'No controller';
+  };
+
+  const beginBinding = (action, buttonEl) => {
+    actionButtons.forEach((btn) => btn.classList.remove('binding'));
+    buttonEl.classList.add('binding');
+    setHint(`Waiting for ${action} binding...`);
+
+    inputState.captureNextControllerBinding(action, 9000)
+      .then(({ binding }) => {
+        buttonEl.classList.remove('binding');
+        renderBindings();
+        setHint(`Bound ${action} to ${inputState.formatControllerBinding(binding)}.`);
+      })
+      .catch((err) => {
+        buttonEl.classList.remove('binding');
+        const anotherBindingActive = actionButtons.some((btn) => btn.classList.contains('binding'));
+        if (anotherBindingActive && err?.message === 'Binding cancelled.') {
+          return;
+        }
+        setHint(err?.message || 'Binding cancelled.');
+      });
+  };
+
+  toggleBtn.addEventListener('click', () => {
+    const willShow = panel.classList.contains('hidden');
+    setPanelVisible(willShow);
+    if (willShow) {
+      renderBindings();
+      renderDeadzone();
+      renderStatus();
+    }
+  });
+
+  deadzoneRange.addEventListener('input', () => {
+    const next = Number(deadzoneRange.value);
+    inputState.setControllerDeadzone(next);
+    if (joystick) joystick.setDeadZone(next);
+    deadzoneValue.textContent = next.toFixed(2);
+  });
+
+  actionButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const action = btn.getAttribute('data-bind-action');
+      if (!action) return;
+      beginBinding(action, btn);
+    });
+  });
+
+  resetBtn.addEventListener('click', () => {
+    inputState.cancelControllerBinding();
+    actionButtons.forEach((btn) => btn.classList.remove('binding'));
+    inputState.resetControllerMapping();
+    renderBindings();
+    setHint('Controller mapping reset to defaults.');
+  });
+
+  renderBindings();
+  renderDeadzone();
+  renderStatus();
+  setHint(defaultHint);
+  setPanelVisible(false);
+
+  refreshControllerPanel = () => {
+    renderStatus();
+  };
 }
 
 // ── HUD Controls ───────────────────────────────────────────────

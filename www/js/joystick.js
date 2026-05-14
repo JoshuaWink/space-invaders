@@ -18,11 +18,11 @@ const SCALE_MAX = 1.8;
 const SCALE_STEP = 0.1;
 
 export class VirtualJoystick {
-  constructor(inputState) {
+  constructor(inputState, options = {}) {
     this.input = inputState;
     this._knobX = 0;          // current offset from center, px
     this._baseRadius = 0;     // computed on mount
-    this._deadZone = 0.15;    // 15% of radius before we register direction
+    this._deadZone = this._clampDeadZone(options.deadZone ?? 0.15);
     this._tracking = null;    // active touch identifier
     this._baseRect = null;    // cached DOMRect of the base circle
     this._knobEl = null;
@@ -39,6 +39,18 @@ export class VirtualJoystick {
     this._scale = 1;
     this._scaleWrap = null;
     this._scaleReadout = null;
+  }
+
+  _clampDeadZone(value) {
+    return Math.max(0.05, Math.min(0.6, Number(value) || 0.15));
+  }
+
+  setDeadZone(value) {
+    this._deadZone = this._clampDeadZone(value);
+  }
+
+  getDeadZone() {
+    return this._deadZone;
   }
 
   mount() {
