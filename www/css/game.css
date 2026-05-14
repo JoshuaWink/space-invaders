@@ -336,6 +336,43 @@ kbd {
   color: var(--dim);
 }
 
+.screen-only-btn {
+  position: fixed;
+  top: 0.65rem;
+  right: 0.65rem;
+  z-index: 25;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.35rem 0.55rem;
+  font-family: inherit;
+  font-size: 0.62rem;
+  letter-spacing: 0.07em;
+  cursor: pointer;
+}
+
+.screen-only-btn:hover {
+  border-color: var(--accent);
+}
+
+#screen-game.screen-only .hud,
+#screen-game.screen-only #controller-panel,
+#screen-game.screen-only #touch-controls,
+#screen-game.screen-only #debug-panel {
+  display: none !important;
+}
+
+#screen-game.screen-only .game-layout {
+  padding: 0;
+  gap: 0;
+}
+
+#screen-game.screen-only #game-canvas {
+  max-width: 98vw;
+  max-height: 98vh;
+}
+
 @media (max-width: 560px) {
   .controller-map-grid {
     grid-template-columns: 1fr;

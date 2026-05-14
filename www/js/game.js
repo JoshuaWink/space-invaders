@@ -25,6 +25,7 @@ let lastRom = null;
 let lastRomName = 'unknown';
 let controllerPanelBound = false;
 let refreshControllerPanel = null;
+let screenOnlyMode = false;
 
 // FPS tracking
 let frameCount = 0;
@@ -100,6 +101,43 @@ function showStatus(msg, isError = false) {
 
 function homebrewSpeedMultiplier() {
   return 1;
+}
+
+function isLandscapeOrientation() {
+  return window.innerWidth > window.innerHeight;
+}
+
+function setScreenOnlyMode(enabled) {
+  const screen = document.getElementById('screen-game');
+  const btn = document.getElementById('btn-screen-only');
+  const controllerPanel = document.getElementById('controller-panel');
+  const controllerBtn = document.getElementById('btn-controller');
+
+  if (!screen || !btn) return;
+
+  screenOnlyMode = Boolean(enabled);
+  screen.classList.toggle('screen-only', screenOnlyMode);
+  btn.textContent = screenOnlyMode ? 'Show UI' : 'Hide UI';
+  btn.title = screenOnlyMode ? 'Show HUD and controls' : 'Hide HUD and controls';
+
+  if (screenOnlyMode) {
+    controllerPanel?.classList.add('hidden');
+    controllerBtn?.classList.remove('is-on');
+    inputState?.cancelControllerBinding();
+  }
+}
+
+function syncScreenOnlyButton() {
+  const btn = document.getElementById('btn-screen-only');
+  if (!btn) return;
+
+  const hasController = Boolean(inputState?.getControllerInfo?.().connected);
+  const eligible = hasController && isLandscapeOrientation();
+
+  btn.classList.toggle('hidden', !eligible);
+  if (!eligible && screenOnlyMode) {
+    setScreenOnlyMode(false);
+  }
 }
 
 function updateHud(machine, romName) {
@@ -220,6 +258,7 @@ function startGame(wasm, rom, romName = 'unknown') {
   showScreen('screen-game');
   paused = false;
   running = true;
+  syncScreenOnlyButton();
 
   // Init heat map visualizer
   initHeatmap();
@@ -425,6 +464,7 @@ function bindControllerPanel() {
 
   refreshControllerPanel = () => {
     renderStatus();
+    syncScreenOnlyButton();
   };
 }
 
@@ -462,6 +502,15 @@ function bindHud(wasm) {
     document.getElementById('btn-debug').textContent = on ? '🔬' : '🔬';
     document.getElementById('btn-debug').style.borderColor = on ? 'var(--accent)' : '';
   });
+
+  const screenOnlyBtn = document.getElementById('btn-screen-only');
+  screenOnlyBtn?.addEventListener('click', () => {
+    setScreenOnlyMode(!screenOnlyMode);
+  });
+
+  window.addEventListener('resize', syncScreenOnlyButton);
+  window.addEventListener('orientationchange', syncScreenOnlyButton);
+  syncScreenOnlyButton();
 }
 
 // ── ROM Drop Zone ──────────────────────────────────────────────
