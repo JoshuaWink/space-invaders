@@ -104,7 +104,24 @@ function homebrewSpeedMultiplier() {
 }
 
 function isLandscapeOrientation() {
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    if (window.matchMedia('(orientation: landscape)').matches) {
+      return true;
+    }
+  }
   return window.innerWidth > window.innerHeight;
+}
+
+function hasConnectedController() {
+  const infoConnected = Boolean(inputState?.getControllerInfo?.().connected);
+  if (infoConnected) return true;
+
+  if (typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function') {
+    const pads = navigator.getGamepads();
+    return Array.from(pads || []).some((pad) => Boolean(pad && pad.connected));
+  }
+
+  return false;
 }
 
 function setScreenOnlyMode(enabled) {
@@ -131,8 +148,8 @@ function syncScreenOnlyButton() {
   const btn = document.getElementById('btn-screen-only');
   if (!btn) return;
 
-  const hasController = Boolean(inputState?.getControllerInfo?.().connected);
-  const eligible = hasController && isLandscapeOrientation();
+  inputState?.pollControllers?.();
+  const eligible = hasConnectedController() && isLandscapeOrientation();
 
   btn.classList.toggle('hidden', !eligible);
   if (!eligible && screenOnlyMode) {
