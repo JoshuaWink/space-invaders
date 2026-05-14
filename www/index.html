@@ -104,6 +104,12 @@ H  00  L  00</pre>
           <button id="btn-debug" class="hud-btn" aria-label="Debug visualizer" title="Toggle CPU heat map">🔬</button>
         </div>
 
+        <div class="controller-row haptic-strength-row">
+          <label for="haptic-strength-range" class="controller-label">HAPTIC STRENGTH</label>
+          <input id="haptic-strength-range" type="range" min="0.80" max="3.00" step="0.05" value="1.00">
+          <span id="haptic-strength-value" class="controller-value">1.00x</span>
+        </div>
+
         <div id="controller-panel" class="controller-panel" aria-live="polite">
           <div class="controller-row">
             <span class="controller-label">CONTROLLER</span>

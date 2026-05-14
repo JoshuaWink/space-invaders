@@ -18,6 +18,7 @@ let inputState = null;   // Keyboard/touch tracker
 let joystick = null;     // Virtual joystick instance (mobile)
 let muted = false;
 let hapticAudioEnabled = false;
+let hapticStrength = 1;
 let paused = false;
 let running = false;
 let frameId = null;
@@ -40,6 +41,48 @@ const HOME_BREW_UFO = 0x2017;
 const ORIGINAL_FPS = 60;
 const FRAME_MS = 1000 / ORIGINAL_FPS;
 const MAX_CATCHUP_STEPS = 5;
+const HAPTIC_SETTINGS_STORAGE_KEY = 'si-haptic-settings-v1';
+const HAPTIC_MIN_STRENGTH = 0.8;
+const HAPTIC_MAX_STRENGTH = 3.0;
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function defaultHapticStrength() {
+  if (typeof navigator === 'undefined') return 1;
+  return /android/i.test(navigator.userAgent || '') ? 1.6 : 1;
+}
+
+function loadHapticSettings() {
+  hapticStrength = defaultHapticStrength();
+
+  try {
+    const raw = localStorage.getItem(HAPTIC_SETTINGS_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+
+    if (typeof parsed.enabled === 'boolean') {
+      hapticAudioEnabled = parsed.enabled;
+    }
+    if (typeof parsed.strength === 'number') {
+      hapticStrength = clamp(parsed.strength, HAPTIC_MIN_STRENGTH, HAPTIC_MAX_STRENGTH);
+    }
+  } catch (_) {
+    // Ignore invalid persisted values and continue with defaults.
+  }
+}
+
+function saveHapticSettings() {
+  try {
+    localStorage.setItem(HAPTIC_SETTINGS_STORAGE_KEY, JSON.stringify({
+      enabled: hapticAudioEnabled,
+      strength: hapticStrength,
+    }));
+  } catch (_) {
+    // Ignore private mode/quota failures.
+  }
+}
 
 function supportsVibration() {
   return typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
@@ -278,6 +321,7 @@ function startGame(wasm, rom, romName = 'unknown') {
     audioCtx,
     muted,
     hapticAudioEnabled,
+    hapticStrength,
     speedMultiplier: homebrewSpeedMultiplier(romName),
   });
 
@@ -305,6 +349,7 @@ function startGame(wasm, rom, romName = 'unknown') {
         const framePayload = basePayload
           .insert('muted', muted)
           .insert('hapticAudioEnabled', hapticAudioEnabled)
+          .insert('hapticStrength', hapticStrength)
           .insert('inputState', inputState);
 
         // Run one authentic machine frame step (60 Hz target)
@@ -486,6 +531,34 @@ function bindHud(wasm) {
   syncHapticAudioButton();
   bindSettingsModal();
 
+  const hapticRange = document.getElementById('haptic-strength-range');
+  const hapticValue = document.getElementById('haptic-strength-value');
+
+  const syncHapticStrengthUi = () => {
+    if (!hapticRange || !hapticValue) return;
+
+    hapticRange.value = hapticStrength.toFixed(2);
+    hapticValue.textContent = `${hapticStrength.toFixed(2)}x`;
+
+    const supported = supportsVibration();
+    hapticRange.disabled = !supported;
+    hapticRange.title = supported
+      ? 'Increase vibration intensity'
+      : 'Vibration not supported on this device/browser';
+  };
+
+  if (hapticRange) {
+    hapticRange.addEventListener('input', () => {
+      hapticStrength = clamp(Number(hapticRange.value) || 1, HAPTIC_MIN_STRENGTH, HAPTIC_MAX_STRENGTH);
+      if (hapticValue) {
+        hapticValue.textContent = `${hapticStrength.toFixed(2)}x`;
+      }
+      saveHapticSettings();
+    });
+  }
+
+  syncHapticStrengthUi();
+
   document.getElementById('btn-pause')?.addEventListener('click', () => {
     paused = !paused;
     document.getElementById('btn-pause').textContent = paused ? '▶' : '⏸';
@@ -499,11 +572,18 @@ function bindHud(wasm) {
   document.getElementById('btn-haptic-audio')?.addEventListener('click', () => {
     if (!supportsVibration()) {
       syncHapticAudioButton();
+      syncHapticStrengthUi();
       return;
     }
 
     hapticAudioEnabled = !hapticAudioEnabled;
     syncHapticAudioButton();
+    saveHapticSettings();
+
+    if (hapticAudioEnabled) {
+      const pulseMs = Math.round(24 * hapticStrength);
+      navigator.vibrate([pulseMs, 18, pulseMs]);
+    }
   });
 
   document.getElementById('btn-reset')?.addEventListener('click', () => {
@@ -569,6 +649,8 @@ function bindStepButtons(wasm) {
 // ── Boot ───────────────────────────────────────────────────────
 
 async function boot() {
+  loadHapticSettings();
+
   // Register service worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});

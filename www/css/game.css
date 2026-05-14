@@ -302,6 +302,15 @@ kbd {
   gap: 0.5rem;
 }
 
+.haptic-strength-row {
+  align-items: center;
+}
+
+#haptic-strength-range {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
 /* ── Controller Panel ─────────────────────────────────────── */
 .controller-panel {
   width: 100%;
