@@ -87,39 +87,51 @@ H  00  L  00</pre>
       <span id="hud-status" class="hud-pill">READY</span>
       <span id="fps-counter">0 fps</span>
       <button id="btn-pause" class="hud-btn" aria-label="Pause">⏸</button>
-      <button id="btn-mute" class="hud-btn" aria-label="Mute">🔊</button>
-      <button id="btn-haptic-audio" class="hud-btn" aria-label="Audio haptics" title="Mirror game sounds with vibration">📳</button>
-      <button id="btn-controller" class="hud-btn" aria-label="Controller settings" title="Controller settings">🎮</button>
-      <button id="btn-reset" class="hud-btn" aria-label="Reset">↺</button>
-      <button id="btn-debug" class="hud-btn" aria-label="Debug visualizer" title="Toggle CPU heat map">🔬</button>
+      <button id="btn-settings" class="hud-btn" aria-label="Open settings" title="Open settings">⚙</button>
     </div>
 
-    <div id="controller-panel" class="controller-panel hidden" aria-live="polite">
-      <div class="controller-row">
-        <span class="controller-label">CONTROLLER</span>
-        <span id="controller-status" class="controller-value">No controller</span>
+    <div id="settings-modal" class="settings-modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="settings-card">
+        <div class="settings-header">
+          <h2 id="settings-title" class="settings-title">Settings</h2>
+          <button id="btn-settings-close" class="hud-btn settings-close" aria-label="Close settings" title="Close settings">✕</button>
+        </div>
+
+        <div class="settings-actions">
+          <button id="btn-mute" class="hud-btn" aria-label="Mute">🔊</button>
+          <button id="btn-haptic-audio" class="hud-btn" aria-label="Audio haptics" title="Mirror game sounds with vibration">📳</button>
+          <button id="btn-reset" class="hud-btn" aria-label="Reset">↺</button>
+          <button id="btn-debug" class="hud-btn" aria-label="Debug visualizer" title="Toggle CPU heat map">🔬</button>
+        </div>
+
+        <div id="controller-panel" class="controller-panel" aria-live="polite">
+          <div class="controller-row">
+            <span class="controller-label">CONTROLLER</span>
+            <span id="controller-status" class="controller-value">No controller</span>
+          </div>
+
+          <div class="controller-row controller-deadzone-row">
+            <label for="deadzone-range" class="controller-label">DEADZONE</label>
+            <input id="deadzone-range" type="range" min="0.05" max="0.60" step="0.01" value="0.20">
+            <span id="deadzone-value" class="controller-value">0.20</span>
+          </div>
+
+          <div class="controller-map-grid">
+            <button class="map-btn" data-bind-action="left">Left: <span class="bind-label">Axis 0 -</span></button>
+            <button class="map-btn" data-bind-action="right">Right: <span class="bind-label">Axis 0 +</span></button>
+            <button class="map-btn" data-bind-action="fire">Fire: <span class="bind-label">Button 0</span></button>
+            <button class="map-btn" data-bind-action="start">Start: <span class="bind-label">Button 9</span></button>
+            <button class="map-btn" data-bind-action="coin">Coin: <span class="bind-label">Button 8</span></button>
+          </div>
+
+          <div id="controller-bind-hint" class="controller-hint">Click an action, then press a button or move an axis.</div>
+
+          <button id="controller-reset" class="map-btn map-btn-reset">Reset Mapping</button>
+        </div>
       </div>
-
-      <div class="controller-row controller-deadzone-row">
-        <label for="deadzone-range" class="controller-label">DEADZONE</label>
-        <input id="deadzone-range" type="range" min="0.05" max="0.60" step="0.01" value="0.20">
-        <span id="deadzone-value" class="controller-value">0.20</span>
-      </div>
-
-      <div class="controller-map-grid">
-        <button class="map-btn" data-bind-action="left">Left: <span class="bind-label">Axis 0 -</span></button>
-        <button class="map-btn" data-bind-action="right">Right: <span class="bind-label">Axis 0 +</span></button>
-        <button class="map-btn" data-bind-action="fire">Fire: <span class="bind-label">Button 0</span></button>
-        <button class="map-btn" data-bind-action="start">Start: <span class="bind-label">Button 9</span></button>
-        <button class="map-btn" data-bind-action="coin">Coin: <span class="bind-label">Button 8</span></button>
-      </div>
-
-      <div id="controller-bind-hint" class="controller-hint">Click an action, then press a button or move an axis.</div>
-
-      <button id="controller-reset" class="map-btn map-btn-reset">Reset Mapping</button>
     </div>
 
-    <button id="btn-screen-only" class="screen-only-btn hidden" aria-label="Toggle screen-only mode" title="Hide HUD and controls">
+    <button id="btn-screen-only" class="screen-only-btn" aria-label="Toggle screen-only mode" title="Hide HUD and controls">
       Hide UI
     </button>
 

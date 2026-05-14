@@ -254,10 +254,58 @@ kbd {
   cursor: not-allowed;
 }
 
+/* ── Settings Modal ───────────────────────────────────────── */
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 32;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.settings-card {
+  width: min(94vw, 620px);
+  max-height: 88vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #050505;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.settings-title {
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.settings-close {
+  font-size: 0.95rem;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 /* ── Controller Panel ─────────────────────────────────────── */
 .controller-panel {
-  width: min(92vw, 560px);
-  margin: 0.15rem auto 0.5rem;
+  width: 100%;
+  margin: 0;
   padding: 0.55rem;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -357,7 +405,7 @@ kbd {
 }
 
 #screen-game.screen-only .hud,
-#screen-game.screen-only #controller-panel,
+#screen-game.screen-only #settings-modal,
 #screen-game.screen-only #touch-controls,
 #screen-game.screen-only #debug-panel {
   display: none !important;

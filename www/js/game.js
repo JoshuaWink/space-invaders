@@ -26,6 +26,7 @@ let lastRomName = 'unknown';
 let controllerPanelBound = false;
 let refreshControllerPanel = null;
 let screenOnlyMode = false;
+let settingsModalBound = false;
 
 // FPS tracking
 let frameCount = 0;
@@ -103,32 +104,28 @@ function homebrewSpeedMultiplier() {
   return 1;
 }
 
-function isLandscapeOrientation() {
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    if (window.matchMedia('(orientation: landscape)').matches) {
-      return true;
-    }
+function setSettingsModalOpen(enabled) {
+  const modal = document.getElementById('settings-modal');
+  const settingsBtn = document.getElementById('btn-settings');
+  if (!modal) return;
+
+  const open = Boolean(enabled);
+  modal.classList.toggle('hidden', !open);
+  settingsBtn?.classList.toggle('is-on', open);
+
+  if (!open) {
+    inputState?.cancelControllerBinding();
+    document.querySelectorAll('#controller-panel .map-btn.binding').forEach((el) => {
+      el.classList.remove('binding');
+    });
+  } else {
+    if (refreshControllerPanel) refreshControllerPanel();
   }
-  return window.innerWidth > window.innerHeight;
-}
-
-function hasConnectedController() {
-  const infoConnected = Boolean(inputState?.getControllerInfo?.().connected);
-  if (infoConnected) return true;
-
-  if (typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function') {
-    const pads = navigator.getGamepads();
-    return Array.from(pads || []).some((pad) => Boolean(pad && pad.connected));
-  }
-
-  return false;
 }
 
 function setScreenOnlyMode(enabled) {
   const screen = document.getElementById('screen-game');
   const btn = document.getElementById('btn-screen-only');
-  const controllerPanel = document.getElementById('controller-panel');
-  const controllerBtn = document.getElementById('btn-controller');
 
   if (!screen || !btn) return;
 
@@ -138,8 +135,7 @@ function setScreenOnlyMode(enabled) {
   btn.title = screenOnlyMode ? 'Show HUD and controls' : 'Hide HUD and controls';
 
   if (screenOnlyMode) {
-    controllerPanel?.classList.add('hidden');
-    controllerBtn?.classList.remove('is-on');
+    setSettingsModalOpen(false);
     inputState?.cancelControllerBinding();
   }
 }
@@ -147,14 +143,7 @@ function setScreenOnlyMode(enabled) {
 function syncScreenOnlyButton() {
   const btn = document.getElementById('btn-screen-only');
   if (!btn) return;
-
-  inputState?.pollControllers?.();
-  const eligible = hasConnectedController() && isLandscapeOrientation();
-
-  btn.classList.toggle('hidden', !eligible);
-  if (!eligible && screenOnlyMode) {
-    setScreenOnlyMode(false);
-  }
+  btn.classList.remove('hidden');
 }
 
 function updateHud(machine, romName) {
@@ -367,14 +356,13 @@ function bindControllerPanel() {
   if (controllerPanelBound || !inputState) return;
 
   const panel = document.getElementById('controller-panel');
-  const toggleBtn = document.getElementById('btn-controller');
   const statusEl = document.getElementById('controller-status');
   const deadzoneRange = document.getElementById('deadzone-range');
   const deadzoneValue = document.getElementById('deadzone-value');
   const hintEl = document.getElementById('controller-bind-hint');
   const resetBtn = document.getElementById('controller-reset');
 
-  if (!panel || !toggleBtn || !statusEl || !deadzoneRange || !deadzoneValue || !hintEl || !resetBtn) {
+  if (!panel || !statusEl || !deadzoneRange || !deadzoneValue || !hintEl || !resetBtn) {
     return;
   }
 
@@ -385,16 +373,6 @@ function bindControllerPanel() {
 
   const setHint = (msg) => {
     hintEl.textContent = msg || defaultHint;
-  };
-
-  const setPanelVisible = (visible) => {
-    panel.classList.toggle('hidden', !visible);
-    toggleBtn.classList.toggle('is-on', visible);
-    if (!visible) {
-      inputState.cancelControllerBinding();
-      actionButtons.forEach((btn) => btn.classList.remove('binding'));
-      setHint(defaultHint);
-    }
   };
 
   const renderBindings = () => {
@@ -432,23 +410,9 @@ function bindControllerPanel() {
       })
       .catch((err) => {
         buttonEl.classList.remove('binding');
-        const anotherBindingActive = actionButtons.some((btn) => btn.classList.contains('binding'));
-        if (anotherBindingActive && err?.message === 'Binding cancelled.') {
-          return;
-        }
         setHint(err?.message || 'Binding cancelled.');
       });
   };
-
-  toggleBtn.addEventListener('click', () => {
-    const willShow = panel.classList.contains('hidden');
-    setPanelVisible(willShow);
-    if (willShow) {
-      renderBindings();
-      renderDeadzone();
-      renderStatus();
-    }
-  });
 
   deadzoneRange.addEventListener('input', () => {
     const next = Number(deadzoneRange.value);
@@ -477,7 +441,6 @@ function bindControllerPanel() {
   renderDeadzone();
   renderStatus();
   setHint(defaultHint);
-  setPanelVisible(false);
 
   refreshControllerPanel = () => {
     renderStatus();
@@ -485,10 +448,43 @@ function bindControllerPanel() {
   };
 }
 
+function bindSettingsModal() {
+  if (settingsModalBound) return;
+
+  const modal = document.getElementById('settings-modal');
+  const openBtn = document.getElementById('btn-settings');
+  const closeBtn = document.getElementById('btn-settings-close');
+  if (!modal || !openBtn || !closeBtn) return;
+
+  settingsModalBound = true;
+
+  openBtn.addEventListener('click', () => {
+    const shouldOpen = modal.classList.contains('hidden');
+    setSettingsModalOpen(shouldOpen);
+  });
+
+  closeBtn.addEventListener('click', () => {
+    setSettingsModalOpen(false);
+  });
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      setSettingsModalOpen(false);
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      setSettingsModalOpen(false);
+    }
+  });
+}
+
 // ── HUD Controls ───────────────────────────────────────────────
 
 function bindHud(wasm) {
   syncHapticAudioButton();
+  bindSettingsModal();
 
   document.getElementById('btn-pause')?.addEventListener('click', () => {
     paused = !paused;
@@ -525,8 +521,6 @@ function bindHud(wasm) {
     setScreenOnlyMode(!screenOnlyMode);
   });
 
-  window.addEventListener('resize', syncScreenOnlyButton);
-  window.addEventListener('orientationchange', syncScreenOnlyButton);
   syncScreenOnlyButton();
 }
 
