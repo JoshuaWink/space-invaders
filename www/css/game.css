@@ -245,6 +245,14 @@ kbd {
   transition: border-color 0.15s;
 }
 .hud-btn:hover { border-color: var(--accent); }
+.hud-btn.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.hud-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 /* ── Touch Controls / Virtual Joystick ─────────────────────── */
 .touch-controls {
@@ -273,6 +281,8 @@ kbd {
   display: flex;
   justify-content: center;
   gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .js-bottom-row {
@@ -352,6 +362,29 @@ kbd {
   font-size: 1rem;
   padding: 0.3rem 0.5rem;
   min-width: 2.2rem;
+}
+
+.js-scale {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.js-scale-btn {
+  min-width: 2.2rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.js-scale-readout {
+  min-width: 3.5rem;
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 0.3rem 0.45rem;
 }
 
 /* Top-row buttons (coin / start) */

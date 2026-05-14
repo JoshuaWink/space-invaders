@@ -13,6 +13,9 @@
  */
 
 const STORAGE_KEY = 'si-controls-pos';
+const SCALE_MIN = 0.7;
+const SCALE_MAX = 1.8;
+const SCALE_STEP = 0.1;
 
 export class VirtualJoystick {
   constructor(inputState) {
@@ -33,6 +36,9 @@ export class VirtualJoystick {
     this._dragTouchId = null;
     this._dragOffsetX = 0;
     this._dragOffsetY = 0;
+    this._scale = 1;
+    this._scaleWrap = null;
+    this._scaleReadout = null;
   }
 
   mount() {
@@ -96,6 +102,43 @@ export class VirtualJoystick {
     topRow.appendChild(lockBtn);
     this._lockBtn = lockBtn;
 
+    const scaleWrap = document.createElement('div');
+    scaleWrap.className = 'js-scale hidden';
+
+    const scaleDown = document.createElement('button');
+    scaleDown.className = 'js-btn js-scale-btn';
+    scaleDown.setAttribute('aria-label', 'Decrease game scale');
+    scaleDown.textContent = '−';
+
+    const scaleReadout = document.createElement('span');
+    scaleReadout.className = 'js-scale-readout';
+    scaleReadout.textContent = '100%';
+
+    const scaleUp = document.createElement('button');
+    scaleUp.className = 'js-btn js-scale-btn';
+    scaleUp.setAttribute('aria-label', 'Increase game scale');
+    scaleUp.textContent = '+';
+
+    scaleWrap.append(scaleDown, scaleReadout, scaleUp);
+    topRow.appendChild(scaleWrap);
+    this._scaleWrap = scaleWrap;
+    this._scaleReadout = scaleReadout;
+
+    const bindScale = (el, fn) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        fn();
+      });
+      el.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fn();
+      }, { passive: false });
+    };
+
+    bindScale(scaleDown, () => this._setScale(this._scale - SCALE_STEP));
+    bindScale(scaleUp, () => this._setScale(this._scale + SCALE_STEP));
+
     lockBtn.addEventListener('click', (e) => {
       e.preventDefault();
       this._toggleLock();
@@ -108,6 +151,7 @@ export class VirtualJoystick {
 
     // Restore saved positions before measuring
     this._restorePositions();
+    this._updateScaleUi();
 
     // Measure (re-measure after first rAF paint in case element was not yet laid out)
     this._measure();
@@ -303,6 +347,7 @@ export class VirtualJoystick {
     this._lockBtn.textContent = this._locked ? '🔒' : '🔓';
     this._baseEl.classList.toggle('js-unlocked', !this._locked);
     this._fireEl.classList.toggle('js-unlocked', !this._locked);
+    this._scaleWrap?.classList.toggle('hidden', this._locked);
 
     if (this._locked) {
       this._savePositions();
@@ -405,6 +450,7 @@ export class VirtualJoystick {
         data[key] = { left: el.style.left, top: el.style.top };
       }
     }
+    data.scale = this._scale;
     if (Object.keys(data).length > 0) {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (_) {}
     }
@@ -414,6 +460,11 @@ export class VirtualJoystick {
     let data;
     try { data = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (_) { return; }
     if (!data) return;
+
+    if (typeof data.scale === 'number') {
+      this._setScale(data.scale, false);
+    }
+
     for (const [key, el] of [['base', this._baseEl], ['fire', this._fireEl]]) {
       if (data[key]) {
         el.style.position = 'fixed';
@@ -423,6 +474,26 @@ export class VirtualJoystick {
         el.style.margin = '0';
       }
     }
+  }
+
+  _setScale(next, doHaptic = true) {
+    const clamped = Math.max(SCALE_MIN, Math.min(SCALE_MAX, Number(next)));
+    this._scale = Math.round(clamped * 10) / 10;
+    this._applyGameScale();
+    this._updateScaleUi();
+    if (doHaptic) this._haptic(8);
+  }
+
+  _applyGameScale() {
+    const wrapper = document.querySelector('.game-wrapper');
+    if (!wrapper) return;
+    wrapper.style.transform = `scale(${this._scale})`;
+    wrapper.style.transformOrigin = 'center center';
+  }
+
+  _updateScaleUi() {
+    if (!this._scaleReadout) return;
+    this._scaleReadout.textContent = `${Math.round(this._scale * 100)}%`;
   }
 
   // ── Haptics ──

@@ -1,6 +1,6 @@
 // UpdateAudio — CUP Filter
 // Detects sound port changes and triggers Web Audio effects.
-// Payload in:  { machine: WasmMachine, audioCtx: AudioContext, muted: boolean }
+// Payload in:  { machine: WasmMachine, audioCtx: AudioContext, muted: boolean, hapticAudioEnabled: boolean }
 // Payload out: { machine: WasmMachine } (sounds are acknowledged)
 //
 // Space Invaders sound ports:
@@ -10,12 +10,14 @@
 export class UpdateAudio {
   constructor() {
     this._oscillators = new Map(); // For looping sounds (UFO)
+    this._lastHapticMs = 0;
   }
 
   call(payload) {
     const machine = payload.get('machine');
     const audioCtx = payload.get('audioCtx');
     const muted = payload.get('muted', false);
+    const hapticAudioEnabled = payload.get('hapticAudioEnabled', false);
 
     if (!machine || !audioCtx || muted) {
       if (machine) machine.acknowledgeSounds();
@@ -33,21 +35,62 @@ export class UpdateAudio {
     const falling3 = ~port3 & prev3;
 
     // Port 3 sounds
-    if (rising3 & 0x01) this._startUfo(audioCtx);
+    if (rising3 & 0x01) {
+      this._startUfo(audioCtx);
+      this._haptic(12, hapticAudioEnabled);
+    }
     if (falling3 & 0x01) this._stopUfo();
-    if (rising3 & 0x02) this._playShot(audioCtx);
-    if (rising3 & 0x04) this._playExplosion(audioCtx);
-    if (rising3 & 0x08) this._playInvaderDie(audioCtx);
+    if (rising3 & 0x02) {
+      this._playShot(audioCtx);
+      this._haptic(18, hapticAudioEnabled);
+    }
+    if (rising3 & 0x04) {
+      this._playExplosion(audioCtx);
+      this._haptic([28, 22, 24], hapticAudioEnabled);
+    }
+    if (rising3 & 0x08) {
+      this._playInvaderDie(audioCtx);
+      this._haptic(14, hapticAudioEnabled);
+    }
 
     // Port 5 sounds — fleet movement (4 tones cycling)
-    if (rising5 & 0x01) this._playFleet(audioCtx, 55);   // Bass note
-    if (rising5 & 0x02) this._playFleet(audioCtx, 49);
-    if (rising5 & 0x04) this._playFleet(audioCtx, 46);
-    if (rising5 & 0x08) this._playFleet(audioCtx, 43);
-    if (rising5 & 0x10) this._playUfoHit(audioCtx);
+    if (rising5 & 0x01) {
+      this._playFleet(audioCtx, 55);   // Bass note
+      this._haptic(8, hapticAudioEnabled);
+    }
+    if (rising5 & 0x02) {
+      this._playFleet(audioCtx, 49);
+      this._haptic(8, hapticAudioEnabled);
+    }
+    if (rising5 & 0x04) {
+      this._playFleet(audioCtx, 46);
+      this._haptic(8, hapticAudioEnabled);
+    }
+    if (rising5 & 0x08) {
+      this._playFleet(audioCtx, 43);
+      this._haptic(8, hapticAudioEnabled);
+    }
+    if (rising5 & 0x10) {
+      this._playUfoHit(audioCtx);
+      this._haptic([36, 22, 36], hapticAudioEnabled);
+    }
 
     machine.acknowledgeSounds();
     return payload;
+  }
+
+  _haptic(pattern, enabled) {
+    if (!enabled || typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') {
+      return;
+    }
+
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (now - this._lastHapticMs < 25) {
+      return;
+    }
+
+    this._lastHapticMs = now;
+    navigator.vibrate(pattern);
   }
 
   // ── Sound generators (synthesized, no samples needed) ──────

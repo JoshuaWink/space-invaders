@@ -16,6 +16,7 @@ let machine = null;      // WasmMachine instance
 let audioCtx = null;     // Web Audio context (created on user gesture)
 let inputState = null;   // Keyboard/touch tracker
 let muted = false;
+let hapticAudioEnabled = false;
 let paused = false;
 let running = false;
 let frameId = null;
@@ -31,6 +32,23 @@ const HOME_BREW_SCORE_HI = 0x200F;
 const HOME_BREW_LIVES = 0x200C;
 const HOME_BREW_STATE = 0x200D;
 const HOME_BREW_UFO = 0x2017;
+
+function supportsVibration() {
+  return typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+}
+
+function syncHapticAudioButton() {
+  const btn = document.getElementById('btn-haptic-audio');
+  if (!btn) return;
+
+  const supported = supportsVibration();
+  btn.disabled = !supported;
+  btn.textContent = hapticAudioEnabled ? '📳' : '📴';
+  btn.classList.toggle('is-on', hapticAudioEnabled);
+  btn.title = supported
+    ? (hapticAudioEnabled ? 'Audio haptics enabled' : 'Audio haptics disabled')
+    : 'Vibration not supported on this device/browser';
+}
 
 // ── Pipelines ──────────────────────────────────────────────────
 
@@ -206,6 +224,7 @@ function startGame(wasm, rom, romName = 'unknown') {
     ctx2d,
     audioCtx,
     muted,
+    hapticAudioEnabled,
     speedMultiplier: homebrewSpeedMultiplier(romName),
   });
 
@@ -220,6 +239,7 @@ function startGame(wasm, rom, romName = 'unknown') {
       // Update muted state in payload
       const framePayload = basePayload
         .insert('muted', muted)
+        .insert('hapticAudioEnabled', hapticAudioEnabled)
         .insert('inputState', inputState);
 
       // Run the CUP frame pipeline synchronously
@@ -263,6 +283,8 @@ function resetGame(wasm) {
 // ── HUD Controls ───────────────────────────────────────────────
 
 function bindHud(wasm) {
+  syncHapticAudioButton();
+
   document.getElementById('btn-pause')?.addEventListener('click', () => {
     paused = !paused;
     document.getElementById('btn-pause').textContent = paused ? '▶' : '⏸';
@@ -271,6 +293,16 @@ function bindHud(wasm) {
   document.getElementById('btn-mute')?.addEventListener('click', () => {
     muted = !muted;
     document.getElementById('btn-mute').textContent = muted ? '🔇' : '🔊';
+  });
+
+  document.getElementById('btn-haptic-audio')?.addEventListener('click', () => {
+    if (!supportsVibration()) {
+      syncHapticAudioButton();
+      return;
+    }
+
+    hapticAudioEnabled = !hapticAudioEnabled;
+    syncHapticAudioButton();
   });
 
   document.getElementById('btn-reset')?.addEventListener('click', () => {
