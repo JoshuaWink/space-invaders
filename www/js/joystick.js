@@ -242,9 +242,6 @@ export class VirtualJoystick {
     const ratio = dx / maxR;
     const deadZone = this._deadZone;
 
-    const prevLeft = this.input.left;
-    const prevRight = this.input.right;
-
     if (ratio < -deadZone) {
       this.input.left = true;
       this.input.right = false;
@@ -254,12 +251,6 @@ export class VirtualJoystick {
     } else {
       this.input.left = false;
       this.input.right = false;
-    }
-
-    // Haptic on direction change
-    if ((this.input.left !== prevLeft || this.input.right !== prevRight) &&
-        (this.input.left || this.input.right)) {
-      this._haptic();
     }
   }
 
@@ -287,7 +278,6 @@ export class VirtualJoystick {
       this._fireTracking = e.changedTouches[0].identifier;
       this.input.fire = true;
       el.classList.add('active');
-      this._haptic();
     }, { passive: false });
 
     const fireRelease = (e) => {

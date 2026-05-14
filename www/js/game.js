@@ -32,6 +32,9 @@ const HOME_BREW_SCORE_HI = 0x200F;
 const HOME_BREW_LIVES = 0x200C;
 const HOME_BREW_STATE = 0x200D;
 const HOME_BREW_UFO = 0x2017;
+const ORIGINAL_FPS = 60;
+const FRAME_MS = 1000 / ORIGINAL_FPS;
+const MAX_CATCHUP_STEPS = 5;
 
 function supportsVibration() {
   return typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
@@ -231,24 +234,39 @@ function startGame(wasm, rom, romName = 'unknown') {
   // Start the loop
   lastFpsTime = performance.now();
   frameCount = 0;
+  let lastTickTime = performance.now();
+  let accumulatorMs = 0;
 
   function loop(timestamp) {
     if (!running) return;
 
+    const delta = Math.min(250, timestamp - lastTickTime);
+    lastTickTime = timestamp;
+
     if (!paused) {
-      // Update muted state in payload
-      const framePayload = basePayload
-        .insert('muted', muted)
-        .insert('hapticAudioEnabled', hapticAudioEnabled)
-        .insert('inputState', inputState);
+      accumulatorMs += delta;
+      let simSteps = 0;
 
-      // Run the CUP frame pipeline synchronously
-      // (all filters are sync; Pipeline.run returns a Promise but resolves immediately)
-      framePipeline.run(framePayload);
-      updateHud(machine, romName);
-      updateHeatmap(machine);
+      while (accumulatorMs >= FRAME_MS && simSteps < MAX_CATCHUP_STEPS) {
+        const framePayload = basePayload
+          .insert('muted', muted)
+          .insert('hapticAudioEnabled', hapticAudioEnabled)
+          .insert('inputState', inputState);
 
-      frameCount++;
+        // Run one authentic machine frame step (60 Hz target)
+        framePipeline.run(framePayload);
+        updateHud(machine, romName);
+        updateHeatmap(machine);
+
+        frameCount++;
+        accumulatorMs -= FRAME_MS;
+        simSteps++;
+      }
+
+      // If the browser was stalled for too long, drop backlog to keep real-time pace.
+      if (simSteps === MAX_CATCHUP_STEPS && accumulatorMs >= FRAME_MS) {
+        accumulatorMs = 0;
+      }
     }
 
     // FPS counter
