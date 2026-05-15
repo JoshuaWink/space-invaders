@@ -109,6 +109,16 @@ function syncHapticAudioButton() {
     : 'Vibration not supported on this device/browser';
 }
 
+function tryUnlockOrientation() {
+  if (typeof screen === 'undefined' || !screen.orientation) return;
+  const orientationApi = screen.orientation;
+  if (typeof orientationApi.unlock === 'function') {
+    orientationApi.unlock().catch(() => {
+      // Some browsers/PWA contexts do not allow runtime unlock.
+    });
+  }
+}
+
 function isStandalonePwa() {
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
     if (window.matchMedia('(display-mode: standalone)').matches) {
@@ -380,6 +390,7 @@ function startGame(wasm, rom, romName = 'unknown') {
   showScreen('screen-game');
   paused = false;
   running = true;
+  tryUnlockOrientation();
   syncScreenOnlyButton();
 
   // Init heat map visualizer
@@ -775,6 +786,8 @@ async function boot() {
   if (maybeRedirectToHttps()) {
     return;
   }
+
+  tryUnlockOrientation();
 
   loadHapticSettings();
 
