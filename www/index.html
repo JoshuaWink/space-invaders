@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
   <meta name="description" content="Space Invaders arcade emulator — Intel 8080 on WASM">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Invaders">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>👾</text></svg>">
   <title>Space Invaders — CUP Emulator</title>
@@ -98,16 +102,28 @@ H  00  L  00</pre>
         </div>
 
         <div class="settings-actions">
+          <button id="btn-install" class="hud-btn settings-install-btn" aria-label="Install app" title="Install app">Install</button>
           <button id="btn-mute" class="hud-btn" aria-label="Mute">🔊</button>
           <button id="btn-haptic-audio" class="hud-btn" aria-label="Audio haptics" title="Mirror game sounds with vibration">📳</button>
           <button id="btn-reset" class="hud-btn" aria-label="Reset">↺</button>
           <button id="btn-debug" class="hud-btn" aria-label="Debug visualizer" title="Toggle CPU heat map">🔬</button>
         </div>
 
+        <div id="pwa-install-hint" class="controller-hint pwa-install-hint">Install app for the best Android experience.</div>
+
         <div class="controller-row haptic-strength-row">
           <label for="haptic-strength-range" class="controller-label">HAPTIC STRENGTH</label>
           <input id="haptic-strength-range" type="range" min="0.80" max="3.00" step="0.05" value="1.00">
           <span id="haptic-strength-value" class="controller-value">1.00x</span>
+        </div>
+
+        <div class="controller-row haptic-tone-row">
+          <label for="haptic-tone-select" class="controller-label">HAPTIC TONE</label>
+          <select id="haptic-tone-select" class="haptic-tone-select" aria-label="Haptic tone profile">
+            <option value="arcade">Arcade Mix</option>
+            <option value="high">High Buzz</option>
+            <option value="low">Low Buzz</option>
+          </select>
         </div>
 
         <div id="controller-panel" class="controller-panel" aria-live="polite">

@@ -302,6 +302,15 @@ kbd {
   gap: 0.5rem;
 }
 
+.settings-install-btn {
+  font-size: 0.72rem;
+  padding: 0.35rem 0.6rem;
+}
+
+.pwa-install-hint {
+  color: var(--accent);
+}
+
 .haptic-strength-row {
   align-items: center;
 }
@@ -309,6 +318,21 @@ kbd {
 #haptic-strength-range {
   flex: 1;
   accent-color: var(--accent);
+}
+
+.haptic-tone-row {
+  align-items: center;
+}
+
+.haptic-tone-select {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.68rem;
+  padding: 0.35rem 0.45rem;
 }
 
 /* ── Controller Panel ─────────────────────────────────────── */

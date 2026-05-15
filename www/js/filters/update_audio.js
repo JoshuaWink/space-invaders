@@ -19,6 +19,7 @@ export class UpdateAudio {
     const muted = payload.get('muted', false);
     const hapticAudioEnabled = payload.get('hapticAudioEnabled', false);
     const hapticStrength = payload.get('hapticStrength', 1);
+    const hapticToneMode = payload.get('hapticToneMode', 'arcade');
 
     if (!machine || !audioCtx || muted) {
       if (machine) machine.acknowledgeSounds();
@@ -38,49 +39,49 @@ export class UpdateAudio {
     // Port 3 sounds
     if (rising3 & 0x01) {
       this._startUfo(audioCtx);
-      this._haptic(12, hapticAudioEnabled, hapticStrength);
+      this._haptic(12, hapticAudioEnabled, hapticStrength, hapticToneMode, 'low');
     }
     if (falling3 & 0x01) this._stopUfo();
     if (rising3 & 0x02) {
       this._playShot(audioCtx);
-      this._haptic(18, hapticAudioEnabled, hapticStrength);
+      this._haptic(18, hapticAudioEnabled, hapticStrength, hapticToneMode, 'high');
     }
     if (rising3 & 0x04) {
       this._playExplosion(audioCtx);
-      this._haptic([28, 22, 24], hapticAudioEnabled, hapticStrength);
+      this._haptic([28, 22, 24], hapticAudioEnabled, hapticStrength, hapticToneMode, 'low');
     }
     if (rising3 & 0x08) {
       this._playInvaderDie(audioCtx);
-      this._haptic(14, hapticAudioEnabled, hapticStrength);
+      this._haptic(14, hapticAudioEnabled, hapticStrength, hapticToneMode, 'high');
     }
 
     // Port 5 sounds — fleet movement (4 tones cycling)
     if (rising5 & 0x01) {
       this._playFleet(audioCtx, 55);   // Bass note
-      this._haptic(8, hapticAudioEnabled, hapticStrength);
+      this._haptic(8, hapticAudioEnabled, hapticStrength, hapticToneMode, 'high');
     }
     if (rising5 & 0x02) {
       this._playFleet(audioCtx, 49);
-      this._haptic(8, hapticAudioEnabled, hapticStrength);
+      this._haptic(8, hapticAudioEnabled, hapticStrength, hapticToneMode, 'high');
     }
     if (rising5 & 0x04) {
       this._playFleet(audioCtx, 46);
-      this._haptic(8, hapticAudioEnabled, hapticStrength);
+      this._haptic(8, hapticAudioEnabled, hapticStrength, hapticToneMode, 'high');
     }
     if (rising5 & 0x08) {
       this._playFleet(audioCtx, 43);
-      this._haptic(8, hapticAudioEnabled, hapticStrength);
+      this._haptic(8, hapticAudioEnabled, hapticStrength, hapticToneMode, 'high');
     }
     if (rising5 & 0x10) {
       this._playUfoHit(audioCtx);
-      this._haptic([36, 22, 36], hapticAudioEnabled, hapticStrength);
+      this._haptic([36, 22, 36], hapticAudioEnabled, hapticStrength, hapticToneMode, 'low');
     }
 
     machine.acknowledgeSounds();
     return payload;
   }
 
-  _haptic(pattern, enabled, strength = 1) {
+  _haptic(pattern, enabled, strength = 1, toneMode = 'arcade', eventTone = 'high') {
     if (!enabled || typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') {
       return;
     }
@@ -95,12 +96,50 @@ export class UpdateAudio {
 
     this._lastHapticMs = now;
 
-    const scaleMs = (ms) => Math.max(6, Math.min(220, Math.round(ms * intensity)));
-    const scaledPattern = Array.isArray(pattern)
-      ? pattern.map((ms) => scaleMs(ms))
-      : scaleMs(pattern);
+    const tone = this._resolveTone(toneMode, eventTone);
+    const tonedPattern = this._applyToneToPattern(pattern, tone);
 
-    navigator.vibrate(scaledPattern);
+    const scaleMs = (ms) => Math.max(6, Math.min(220, Math.round(ms * intensity)));
+    const scaledPattern = tonedPattern.map((ms) => scaleMs(ms));
+
+    const vibratePattern = scaledPattern.length === 1
+      ? scaledPattern[0]
+      : scaledPattern;
+
+    navigator.vibrate(vibratePattern);
+  }
+
+  _resolveTone(toneMode, eventTone) {
+    if (toneMode === 'high' || toneMode === 'low') {
+      return toneMode;
+    }
+    return eventTone === 'low' ? 'low' : 'high';
+  }
+
+  _applyToneToPattern(pattern, tone) {
+    const normalized = Array.isArray(pattern)
+      ? pattern.map((ms) => Math.max(1, Number(ms) || 0))
+      : [Math.max(1, Number(pattern) || 0)];
+
+    if (tone === 'low') {
+      return normalized.map((ms, i) => (i % 2 === 0 ? Math.round(ms * 1.65) : Math.round(ms * 1.2)));
+    }
+
+    const out = [];
+    for (let i = 0; i < normalized.length; i++) {
+      const ms = normalized[i];
+      const isBuzz = i % 2 === 0;
+
+      if (!isBuzz) {
+        out.push(Math.max(4, Math.round(ms * 0.5)));
+        continue;
+      }
+
+      const burst = Math.max(5, Math.round(ms * 0.34));
+      out.push(burst, 8, burst, 8, burst);
+    }
+
+    return out;
   }
 
   // ── Sound generators (synthesized, no samples needed) ──────

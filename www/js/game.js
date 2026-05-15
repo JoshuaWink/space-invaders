@@ -19,6 +19,7 @@ let joystick = null;     // Virtual joystick instance (mobile)
 let muted = false;
 let hapticAudioEnabled = false;
 let hapticStrength = 1;
+let hapticToneMode = 'arcade';
 let paused = false;
 let running = false;
 let frameId = null;
@@ -28,6 +29,7 @@ let controllerPanelBound = false;
 let refreshControllerPanel = null;
 let screenOnlyMode = false;
 let settingsModalBound = false;
+let deferredInstallPrompt = null;
 
 // FPS tracking
 let frameCount = 0;
@@ -44,6 +46,7 @@ const MAX_CATCHUP_STEPS = 5;
 const HAPTIC_SETTINGS_STORAGE_KEY = 'si-haptic-settings-v1';
 const HAPTIC_MIN_STRENGTH = 0.8;
 const HAPTIC_MAX_STRENGTH = 3.0;
+const HAPTIC_TONE_MODES = ['arcade', 'high', 'low'];
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -56,6 +59,7 @@ function defaultHapticStrength() {
 
 function loadHapticSettings() {
   hapticStrength = defaultHapticStrength();
+  hapticToneMode = 'arcade';
 
   try {
     const raw = localStorage.getItem(HAPTIC_SETTINGS_STORAGE_KEY);
@@ -68,6 +72,9 @@ function loadHapticSettings() {
     if (typeof parsed.strength === 'number') {
       hapticStrength = clamp(parsed.strength, HAPTIC_MIN_STRENGTH, HAPTIC_MAX_STRENGTH);
     }
+    if (typeof parsed.toneMode === 'string' && HAPTIC_TONE_MODES.includes(parsed.toneMode)) {
+      hapticToneMode = parsed.toneMode;
+    }
   } catch (_) {
     // Ignore invalid persisted values and continue with defaults.
   }
@@ -78,6 +85,7 @@ function saveHapticSettings() {
     localStorage.setItem(HAPTIC_SETTINGS_STORAGE_KEY, JSON.stringify({
       enabled: hapticAudioEnabled,
       strength: hapticStrength,
+      toneMode: hapticToneMode,
     }));
   } catch (_) {
     // Ignore private mode/quota failures.
@@ -99,6 +107,41 @@ function syncHapticAudioButton() {
   btn.title = supported
     ? (hapticAudioEnabled ? 'Audio haptics enabled' : 'Audio haptics disabled')
     : 'Vibration not supported on this device/browser';
+}
+
+function isStandalonePwa() {
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      return true;
+    }
+  }
+  return typeof navigator !== 'undefined' && Boolean(navigator.standalone);
+}
+
+function syncInstallButton() {
+  const installBtn = document.getElementById('btn-install');
+  const installHint = document.getElementById('pwa-install-hint');
+  if (!installBtn || !installHint) return;
+
+  if (isStandalonePwa()) {
+    installBtn.disabled = true;
+    installBtn.classList.add('is-on');
+    installBtn.textContent = 'Installed';
+    installHint.textContent = 'Running as installed app.';
+    return;
+  }
+
+  installBtn.classList.remove('is-on');
+  installBtn.textContent = 'Install';
+
+  if (deferredInstallPrompt) {
+    installBtn.disabled = false;
+    installHint.textContent = 'Install app for full-screen launch and improved Android haptics.';
+    return;
+  }
+
+  installBtn.disabled = true;
+  installHint.textContent = 'Install prompt not ready. Android Chrome: menu -> Add to Home screen.';
 }
 
 // ── Pipelines ──────────────────────────────────────────────────
@@ -322,6 +365,7 @@ function startGame(wasm, rom, romName = 'unknown') {
     muted,
     hapticAudioEnabled,
     hapticStrength,
+    hapticToneMode,
     speedMultiplier: homebrewSpeedMultiplier(romName),
   });
 
@@ -350,6 +394,7 @@ function startGame(wasm, rom, romName = 'unknown') {
           .insert('muted', muted)
           .insert('hapticAudioEnabled', hapticAudioEnabled)
           .insert('hapticStrength', hapticStrength)
+          .insert('hapticToneMode', hapticToneMode)
           .insert('inputState', inputState);
 
         // Run one authentic machine frame step (60 Hz target)
@@ -533,18 +578,28 @@ function bindHud(wasm) {
 
   const hapticRange = document.getElementById('haptic-strength-range');
   const hapticValue = document.getElementById('haptic-strength-value');
+  const hapticToneSelect = document.getElementById('haptic-tone-select');
+  const installBtn = document.getElementById('btn-install');
 
-  const syncHapticStrengthUi = () => {
-    if (!hapticRange || !hapticValue) return;
-
-    hapticRange.value = hapticStrength.toFixed(2);
-    hapticValue.textContent = `${hapticStrength.toFixed(2)}x`;
-
+  const syncHapticSettingsUi = () => {
     const supported = supportsVibration();
-    hapticRange.disabled = !supported;
-    hapticRange.title = supported
-      ? 'Increase vibration intensity'
-      : 'Vibration not supported on this device/browser';
+
+    if (hapticRange && hapticValue) {
+      hapticRange.value = hapticStrength.toFixed(2);
+      hapticValue.textContent = `${hapticStrength.toFixed(2)}x`;
+      hapticRange.disabled = !supported;
+      hapticRange.title = supported
+        ? 'Increase vibration intensity'
+        : 'Vibration not supported on this device/browser';
+    }
+
+    if (hapticToneSelect) {
+      hapticToneSelect.value = hapticToneMode;
+      hapticToneSelect.disabled = !supported;
+      hapticToneSelect.title = supported
+        ? 'Choose frequency-like haptic cadence'
+        : 'Vibration not supported on this device/browser';
+    }
   };
 
   if (hapticRange) {
@@ -557,7 +612,37 @@ function bindHud(wasm) {
     });
   }
 
-  syncHapticStrengthUi();
+  if (hapticToneSelect) {
+    hapticToneSelect.addEventListener('change', () => {
+      const nextMode = hapticToneSelect.value;
+      if (!HAPTIC_TONE_MODES.includes(nextMode)) return;
+      hapticToneMode = nextMode;
+      saveHapticSettings();
+    });
+  }
+
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) {
+        syncInstallButton();
+        return;
+      }
+
+      const promptEvent = deferredInstallPrompt;
+      deferredInstallPrompt = null;
+      promptEvent.prompt();
+      try {
+        await promptEvent.userChoice;
+      } catch (_) {
+        // Ignore cancelled prompt.
+      }
+
+      syncInstallButton();
+    });
+  }
+
+  syncHapticSettingsUi();
+  syncInstallButton();
 
   document.getElementById('btn-pause')?.addEventListener('click', () => {
     paused = !paused;
@@ -572,7 +657,7 @@ function bindHud(wasm) {
   document.getElementById('btn-haptic-audio')?.addEventListener('click', () => {
     if (!supportsVibration()) {
       syncHapticAudioButton();
-      syncHapticStrengthUi();
+      syncHapticSettingsUi();
       return;
     }
 
@@ -584,6 +669,8 @@ function bindHud(wasm) {
       const pulseMs = Math.round(24 * hapticStrength);
       navigator.vibrate([pulseMs, 18, pulseMs]);
     }
+
+    syncHapticSettingsUi();
   });
 
   document.getElementById('btn-reset')?.addEventListener('click', () => {
@@ -650,6 +737,17 @@ function bindStepButtons(wasm) {
 
 async function boot() {
   loadHapticSettings();
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    syncInstallButton();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    syncInstallButton();
+  });
 
   // Register service worker
   if ('serviceWorker' in navigator) {
