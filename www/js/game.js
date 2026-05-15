@@ -112,11 +112,45 @@ function syncHapticAudioButton() {
 function tryUnlockOrientation() {
   if (typeof screen === 'undefined' || !screen.orientation) return;
   const orientationApi = screen.orientation;
-  if (typeof orientationApi.unlock === 'function') {
-    orientationApi.unlock().catch(() => {
-      // Some browsers/PWA contexts do not allow runtime unlock.
-    });
+  if (typeof orientationApi.unlock !== 'function') return;
+
+  // Attempt 1: direct unlock (works in some standalone PWA contexts)
+  try { orientationApi.unlock(); } catch (_) { /* no-op */ }
+
+  // Attempt 2: enter fullscreen then unlock (Android Chrome requires fullscreen)
+  const doc = document.documentElement;
+  const requestFs = doc.requestFullscreen || doc.webkitRequestFullscreen || doc.mozRequestFullScreen || doc.msRequestFullscreen;
+  if (requestFs) {
+    const triggerFsUnlock = () => {
+      requestFs.call(doc).then(() => {
+        try { orientationApi.unlock(); } catch (_) { /* no-op */ }
+        // Exit fullscreen after unlocking to keep standalone PWA UX
+        const exitFs = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+        if (exitFs) setTimeout(() => exitFs.call(document).catch(() => {}), 120);
+      }).catch(() => {});
+    };
+    // Fullscreen requires user gesture — bind to first interaction if not already interactive
+    if (document.fullscreenEnabled || document.webkitFullscreenEnabled) {
+      document.addEventListener('pointerdown', triggerFsUnlock, { once: true });
+      document.addEventListener('touchstart', triggerFsUnlock, { once: true });
+    }
   }
+}
+
+function handleOrientationChange() {
+  // Give the browser a moment to settle the new viewport dimensions
+  setTimeout(() => {
+    const canvas = document.getElementById('game-canvas');
+    if (canvas) {
+      // Force layout recalculation by briefly toggling a class
+      canvas.classList.add('orientation-adapting');
+      requestAnimationFrame(() => canvas.classList.remove('orientation-adapting'));
+    }
+    // Re-measure joystick if it exists
+    if (typeof window.joystickInstance !== 'undefined' && window.joystickInstance) {
+      window.joystickInstance.remeasure();
+    }
+  }, 150);
 }
 
 function isStandalonePwa() {
@@ -788,6 +822,13 @@ async function boot() {
   }
 
   tryUnlockOrientation();
+
+  // Listen for orientation/resize changes
+  window.addEventListener('resize', handleOrientationChange);
+  if (screen.orientation) {
+    screen.orientation.addEventListener('change', handleOrientationChange);
+  }
+  window.addEventListener('orientationchange', handleOrientationChange);
 
   loadHapticSettings();
 

@@ -454,6 +454,40 @@ kbd {
   max-height: 98vh;
 }
 
+/* ── Landscape adaptation ──────────────────────────────────── */
+@media (orientation: landscape) {
+  #game-canvas {
+    max-width: 45vw;
+    max-height: 92vh;
+  }
+
+  .game-layout {
+    flex-direction: row;
+  }
+
+  .hud {
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .hud-pill { font-size: 0.62rem; }
+}
+
+@media (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  #game-canvas {
+    max-width: 50vw;
+    max-height: 90vh;
+  }
+
+  .touch-controls {
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem;
+    max-width: 45vw;
+  }
+}
+
 @media (max-width: 560px) {
   .controller-map-grid {
     grid-template-columns: 1fr;
