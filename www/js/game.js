@@ -118,6 +118,28 @@ function isStandalonePwa() {
   return typeof navigator !== 'undefined' && Boolean(navigator.standalone);
 }
 
+function isSecureInstallContext() {
+  if (typeof window === 'undefined') return true;
+  if (window.isSecureContext) return true;
+
+  const host = window.location.hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+}
+
+function maybeRedirectToHttps() {
+  if (typeof window === 'undefined') return false;
+
+  const { protocol, hostname, host, pathname, search, hash } = window.location;
+  const localHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+
+  if (protocol === 'http:' && !localHost) {
+    window.location.replace(`https://${host}${pathname}${search}${hash}`);
+    return true;
+  }
+
+  return false;
+}
+
 function syncInstallButton() {
   const installBtn = document.getElementById('btn-install');
   const installHint = document.getElementById('pwa-install-hint');
@@ -128,6 +150,14 @@ function syncInstallButton() {
     installBtn.classList.add('is-on');
     installBtn.textContent = 'Installed';
     installHint.textContent = 'Running as installed app.';
+    return;
+  }
+
+  if (!isSecureInstallContext()) {
+    installBtn.disabled = true;
+    installBtn.classList.remove('is-on');
+    installBtn.textContent = 'Install';
+    installHint.textContent = 'Open this page with HTTPS to install as a real app.';
     return;
   }
 
@@ -623,6 +653,12 @@ function bindHud(wasm) {
 
   if (installBtn) {
     installBtn.addEventListener('click', async () => {
+      if (!isSecureInstallContext()) {
+        maybeRedirectToHttps();
+        syncInstallButton();
+        return;
+      }
+
       if (!deferredInstallPrompt) {
         syncInstallButton();
         return;
@@ -736,6 +772,10 @@ function bindStepButtons(wasm) {
 // ── Boot ───────────────────────────────────────────────────────
 
 async function boot() {
+  if (maybeRedirectToHttps()) {
+    return;
+  }
+
   loadHapticSettings();
 
   window.addEventListener('beforeinstallprompt', (event) => {

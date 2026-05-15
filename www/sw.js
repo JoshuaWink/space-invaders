@@ -1,9 +1,12 @@
 // Service Worker — network-first during development so rebuilt ROM UI is visible.
-const CACHE_NAME = 'space-invaders-v6';
+const CACHE_NAME = 'space-invaders-v7';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './icons/icon.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
   './css/game.css',
   './js/game.js',
   './js/cup-pipe.js',
